@@ -1,5 +1,5 @@
 # albert-python-remmina
-An albert python module to open remmina connections quickly
+An albert python module to quickly open remmina connections.
 
 # Installation
 Maybe the extension gets into the main albert repository some day. Until then, the module must be installed manually like this:
