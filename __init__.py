@@ -35,6 +35,10 @@ def handleQuery(query):
 
     for fileName in files:
         fullPath = REMMINA_DIR + '/' + fileName
+        
+        if not os.path.isfile(fullPath):
+            continue
+            
         parser.read(fullPath)
 
         name = parser.get('remmina', 'name')
