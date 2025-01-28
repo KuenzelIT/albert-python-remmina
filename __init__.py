@@ -1,73 +1,81 @@
 # -*- coding: utf-8 -*-
 
-"""This is the remmina python module for albert.
+"""
 
-Synopsis: <trigger> [delay|throw] <query>"""
-import subprocess
+"""
 
-from albert import *
-import os
 import configparser
+import os
+from albert import *
+from pathlib import Path
+from string import hexdigits
+from urllib.parse import quote_plus
 
-__title__ = "Remmina"
-__version__ = "0.5.0"
-__triggers__ = "rem "
-__authors__ = "Denis Gerber"
-# __exec_deps__ = ["whatever"]
+md_iid = '2.0'
+md_version = '1.2'
+md_name = 'Remmina'
+md_description = 'Open rdp connections with remmina'
+md_license = 'MIT'
+md_url = 'https://github.com/KuenzelIT/albert-python-remmina'
+md_authors = "@kuenzelit"
 
 HOME_DIR = os.environ["HOME"]
 REMMINA_DIR = HOME_DIR + "/.remmina"
 
 
-def handleQuery(query):
-    # Return if string is empty
-    if not query.string.strip():
-        return
+class Plugin(PluginInstance, GlobalQueryHandler):
 
-    if not os.path.isdir(REMMINA_DIR):
-        return
+    def __init__(self):
+        GlobalQueryHandler.__init__(self,
+                                    id=md_id,
+                                    name=md_name,
+                                    description=md_description,
+                                    defaultTrigger='#')
+        PluginInstance.__init__(self, extensions=[self])
+        self.icon_url = f"file:{Path(__file__).parent}/icon.png"
 
-    results = []
+    def handleGlobalQuery(self, query):
+        if not query.string.strip():
+            return
 
-    search = query.string.lower()
-    parser = configparser.RawConfigParser()
-    files = os.listdir(REMMINA_DIR)
+        if not os.path.isdir(REMMINA_DIR):
+            return
 
-    for fileName in files:
-        fullPath = REMMINA_DIR + '/' + fileName
-        
-        if not os.path.isfile(fullPath):
-            continue
-            
-        parser.read(fullPath)
+        results = []
 
-        name = parser.get('remmina', 'name')
-        nameLowered = name.lower()
+        search = query.string.lower()
 
-        if search not in nameLowered:
-            continue
+        parser = configparser.RawConfigParser()
+        files = os.listdir(REMMINA_DIR)
 
-        results.append(createRemminaItem(name, fullPath))
+        for fileName in files:
+            fullPath = REMMINA_DIR + '/' + fileName
+            parser.read(fullPath)
 
-    return results
+            name = parser.get('remmina', 'name').lower()
 
+            if search not in name:
+                continue
 
-def createRemminaItem(name, fullPath):
-    try:
-        subprocess.call(["remmina", "-v"])
-        action = ProcAction(text="ProcAction",
-                            commandline=["remmina", fullPath],
-                            cwd="~")
-    except FileNotFoundError:
-        # If remmina is not found in the PATH, fallback to using flatpak
-        action = ProcAction(text="ProcAction",
-                            commandline=["/usr/bin/flatpak", "run", "org.remmina.Remmina", fullPath],
-                            cwd="~")
+            results.append(
+                RankItem(
+                    StandardItem(
+                        id=md_id,
+                        text=name,
+                        subtext="Open rdp connection to %s" % search,
+                        iconUrls=[self.icon_url],
+                        actions=[
+                            Action(
+                                search,
+                                "Open rdp connection to %s" % search,
+                                lambda file=fullPath: runDetachedProcess(
+                                    ['remmina', file]
+                                ),
+                            )
+                        ]
+                    ),
+                    1
+                )
+            )
 
-        # Other installation methods, like snap, are not supported yet
-
-    return Item(id=__title__,
-                icon=os.path.dirname(__file__) + "/icon.png",
-                text=name,
-                subtext="Connect to with Remmina",
-                actions=[action])
+        return results
